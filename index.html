@@ -3,69 +3,172 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Google Sheets 테이블 출력</title>
+  <title>B1 보드게임카페 보유게임 리스트</title>
   <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 1.5em;
+      text-align: center;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      width: 100%;
+    }
+
     table {
       border-collapse: collapse;
       width: 100%;
-      margin-top: 20px;
+      min-width: 600px;
     }
+
     th, td {
       border: 1px solid #ccc;
       padding: 8px;
+      text-align: left;
       vertical-align: top;
       white-space: pre-wrap; /* 줄바꿈 유지 */
     }
+
     th {
       background-color: #f2f2f2;
+      position: relative;
+    }
+
+    .sort-btn {
+      margin-left: 8px;
+      font-size: 0.8em;
+      cursor: pointer;
+      background: #eee;
+      border: none;
+      padding: 2px 4px;
+    }
+
+    @media (max-width: 768px) {
+      th, td {
+        font-size: 14px;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>Google 스프레드시트 데이터</h1>
-  <table id="sheet-table"></table>
+  <h1>B1 보드게임카페 보유게임 리스트</h1>
+  <div class="table-container">
+    <table id="sheet-table"></table>
+  </div>
 
   <script>
     const sheetId = '1F9Ho9alBcuP1_PoJletmulKCJqPCVm8SLTq61_uWJMM';
     const gid = '0';
     const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?gid=${gid}`;
 
+    let tableData = [];
+    let sortState = [];
+
     fetch(url)
       .then(res => res.text())
       .then(text => {
         const jsonData = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S\w]+)\)/)[1]);
         const rows = jsonData.table.rows;
-        const cols = jsonData.table.cols.map(col => col.label);
+        const cols = jsonData.table.cols;
 
-        const table = document.getElementById('sheet-table');
+        // 실제 열 개수보다 1개 적게 사용
+        const columnCount = cols.length - 1;
 
-        // 헤더 생성
-        const thead = document.createElement('thead');
-        const headerRow = document.createElement('tr');
-        cols.forEach(col => {
-          const th = document.createElement('th');
-          th.textContent = col;
-          headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
-        table.appendChild(thead);
+        // 헤더 추출
+        const headers = cols.slice(0, columnCount).map(col => col.label);
 
-        // 바디 생성
-        const tbody = document.createElement('tbody');
-        rows.forEach(row => {
-          const tr = document.createElement('tr');
-          row.c.forEach(cell => {
-            const td = document.createElement('td');
-            td.textContent = cell && cell.v ? cell.v : '-';  // 빈 셀은 "-"
-            tr.appendChild(td);
-          });
-          tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-      })
-      .catch(err => {
-        console.error('데이터 불러오기 실패:', err);
+        // 데이터 추출
+        tableData = rows.map(row =>
+          row.c.slice(0, columnCount).map(cell => (cell && cell.v ? cell.v : '-'))
+        );
+
+        renderTable(headers, tableData);
       });
+
+    function renderTable(headers, data) {
+      const table = document.getElementById('sheet-table');
+      table.innerHTML = '';
+
+      // 테이블 헤더
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+
+      headers.forEach((header, index) => {
+        const th = document.createElement('th');
+        th.textContent = header;
+
+        const button = document.createElement('button');
+        button.className = 'sort-btn';
+        button.textContent = '↕';
+        button.dataset.index = index;
+
+        button.addEventListener('click', () => {
+          updateSort(index);
+          applySort();
+          renderTable(headers, tableData);
+        });
+
+        th.appendChild(button);
+        headerRow.appendChild(th);
+      });
+
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      // 테이블 바디
+      const tbody = document.createElement('tbody');
+      data.forEach(row => {
+        const tr = document.createElement('tr');
+        row.forEach(cell => {
+          const td = document.createElement('td');
+          td.textContent = cell;
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+    }
+
+    function updateSort(index) {
+      const existing = sortState.find(s => s.index === index);
+      if (!existing) {
+        sortState.push({ index, direction: 'asc' });
+      } else if (existing.direction === 'asc') {
+        existing.direction = 'desc';
+      } else {
+        // Remove sort on third click
+        sortState = sortState.filter(s => s.index !== index);
+      }
+    }
+
+    function applySort() {
+      tableData.sort((a, b) => {
+        for (const s of sortState) {
+          const valA = a[s.index];
+          const valB = b[s.index];
+
+          const isNumber = !isNaN(valA) && !isNaN(valB);
+          if (valA === valB) continue;
+
+          if (isNumber) {
+            return s.direction === 'asc'
+              ? valA - valB
+              : valB - valA;
+          } else {
+            return s.direction === 'asc'
+              ? valA.localeCompare(valB)
+              : valB.localeCompare(valA);
+          }
+        }
+        return 0;
+      });
+    }
   </script>
 </body>
 </html>
