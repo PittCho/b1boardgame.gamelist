@@ -160,7 +160,9 @@
     let sortState = [];
     let filters = [];
 
-    const difficultyColumnIndex = 3; // 기준 열 (난이도)
+    const valueColumnIndex = 3; // 난이도 기준 열 인덱스
+    const minValue = 1.0;
+    const maxValue = 5.0;
 
     fetch(url)
       .then(res => res.text())
@@ -180,11 +182,14 @@
         currentData = [...originalData];
 
         renderTable(headers, currentData);
-      });
+      });    
 
     function renderTable(headers, data) {
       const table = document.getElementById('sheet-table');
       table.innerHTML = '';
+
+      const isDarkMode = window.matchMedia &&
+                        window.matchMedia('(prefers-color-scheme: dark)').matches;
 
       const thead = document.createElement('thead');
       const headerRow = document.createElement('tr');
@@ -192,57 +197,61 @@
       headers.forEach((header, index) => {
         const th = document.createElement('th');
 
-        const container = document.createElement('div');
-        container.className = 'header-cell';
+        const titleContainer = document.createElement('div');
+        titleContainer.style.display = 'flex';
+        titleContainer.style.flexDirection = 'column';
 
-        const top = document.createElement('div');
-        top.className = 'header-top';
+        const topRow = document.createElement('div');
+        topRow.style.display = 'flex';
+        topRow.style.alignItems = 'center';
+        topRow.style.justifyContent = 'space-between';
 
-        const label = document.createElement('span');
-        label.textContent = header;
-
-        const sortWrap = document.createElement('span');
+        const span = document.createElement('span');
+        span.textContent = header;
 
         const sortButton = document.createElement('button');
         sortButton.className = 'sort-btn';
         sortButton.textContent = getSortSymbol(index);
         sortButton.dataset.index = index;
-
-        const sortOrder = getSortOrder(index);
-        const sortOrderSpan = document.createElement('span');
-        sortOrderSpan.className = 'sort-order';
-        sortOrderSpan.textContent = sortOrder !== null ? `(${sortOrder + 1})` : '';
-
         sortButton.addEventListener('click', () => {
           handleSortClick(index);
-          updateAndRender(headers);
+          sortTable();
+          renderTable(headers, currentData);
         });
 
-        sortWrap.appendChild(sortButton);
-        sortWrap.appendChild(sortOrderSpan);
+        const priority = sortState.findIndex(s => s.index === index);
+        if (priority !== -1) {
+          const priorityLabel = document.createElement('span');
+          priorityLabel.textContent = ` (${priority + 1})`;
+          span.appendChild(priorityLabel);
+        }
 
-        top.appendChild(label);
-        top.appendChild(sortWrap);
-        container.appendChild(top);
+        topRow.appendChild(span);
+        topRow.appendChild(sortButton);
 
         const input = document.createElement('input');
         input.type = 'text';
-        input.className = 'column-filter';
-        input.value = filters[index];
+        input.placeholder = '필터...';
+        input.value = filters[index] || '';
+        input.style.marginTop = '4px';
+        input.style.width = '90%';
+        input.style.fontSize = '12px';
 
         input.addEventListener('blur', () => {
-          filters[index] = input.value.toLowerCase();
-          updateAndRender(headers);
+          filters[index] = input.value.trim().toLowerCase();
+          applyFiltersAndRender(headers);
         });
 
         input.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') {
-            input.blur();
+            filters[index] = input.value.trim().toLowerCase();
+            applyFiltersAndRender(headers);
           }
         });
 
-        container.appendChild(input);
-        th.appendChild(container);
+        titleContainer.appendChild(topRow);
+        titleContainer.appendChild(input);
+        th.appendChild(titleContainer);
         headerRow.appendChild(th);
       });
 
@@ -250,13 +259,19 @@
       table.appendChild(thead);
 
       const tbody = document.createElement('tbody');
-      data.forEach(row => {
+      data.forEach((row, rowIndex) => {
         const tr = document.createElement('tr');
 
-        const rawValue = row[difficultyColumnIndex];
-        const num = parseFloat(rawValue);
-        if (!isNaN(num)) {
-          tr.style.backgroundColor = getColorByDifficulty(num);
+        // 값 추출 및 숫자 확인
+        const cellValue = parseFloat(row[valueColumnIndex]);
+        let isValid = !isNaN(cellValue);
+
+        if (isValid && cellValue >= minValue && cellValue <= maxValue) {
+          const bgColor = interpolateHSL(cellValue, minValue, maxValue, isDarkMode);
+          tr.style.backgroundColor = bgColor;
+        } else if (rowIndex % 2 === 0) {
+          // 기본 교차 색상
+          tr.style.backgroundColor = isDarkMode ? '#1e1e1e' : '#f9f9f9';
         }
 
         row.forEach(cell => {
@@ -264,6 +279,7 @@
           td.textContent = cell;
           tr.appendChild(td);
         });
+
         tbody.appendChild(tr);
       });
 
