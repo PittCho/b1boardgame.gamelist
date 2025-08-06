@@ -13,6 +13,9 @@
       font-family: Arial, sans-serif;
       padding: 20px;
       margin: 0;
+      background-color: #fff;
+      color: #000;
+      transition: background-color 0.3s, color 0.3s;
     }
 
     h1 {
@@ -103,6 +106,42 @@
         padding: 3px;
       }
     }
+
+    /* 🌙 다크모드 스타일 */
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #121212;
+        color: #f1f1f1;
+      }
+
+      table {
+        border-color: #444;
+      }
+
+      th, td {
+        border-color: #555;
+      }
+
+      th {
+        background-color: #2a2a2a;
+      }
+
+      .sort-btn {
+        background: #444;
+        border-color: #666;
+        color: #f1f1f1;
+      }
+
+      input.column-filter {
+        background-color: #2a2a2a;
+        border-color: #666;
+        color: #f1f1f1;
+      }
+
+      tbody tr:nth-child(even) {
+        background-color: #1a1a1a;
+      }
+    }
   </style>
 </head>
 <body>
@@ -120,6 +159,8 @@
     let currentData = [];
     let sortState = [];
     let filters = [];
+
+    const difficultyColumnIndex = 3; // 기준 열 (난이도)
 
     fetch(url)
       .then(res => res.text())
@@ -154,7 +195,6 @@
         const container = document.createElement('div');
         container.className = 'header-cell';
 
-        // 제목 + 정렬 버튼 + 정렬 순서
         const top = document.createElement('div');
         top.className = 'header-top';
 
@@ -185,7 +225,6 @@
         top.appendChild(sortWrap);
         container.appendChild(top);
 
-        // 필터 입력창
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'column-filter';
@@ -213,6 +252,13 @@
       const tbody = document.createElement('tbody');
       data.forEach(row => {
         const tr = document.createElement('tr');
+
+        const rawValue = row[difficultyColumnIndex];
+        const num = parseFloat(rawValue);
+        if (!isNaN(num)) {
+          tr.style.backgroundColor = getColorByDifficulty(num);
+        }
+
         row.forEach(cell => {
           const td = document.createElement('td');
           td.textContent = cell;
@@ -224,19 +270,29 @@
       table.appendChild(tbody);
     }
 
+    function getColorByDifficulty(value) {
+      const clamped = Math.max(1.0, Math.min(5.0, value));
+      const ratio = (clamped - 1.0) / 4.0;
+
+      const r = Math.round(60 + ratio * (255 - 60));   // 초록/파랑 → 빨강
+      const g = Math.round(180 - ratio * 100);         // 초록 → 줄어듦
+      const b = Math.round(200 - ratio * 180);         // 파랑 → 줄어듦
+
+      return `rgba(${r}, ${g}, ${b}, 0.2)`; // 연한 색
+    }
+
     function handleSortClick(index) {
       const existingIndex = sortState.findIndex(s => s.index === index);
-
       if (existingIndex !== -1) {
         const current = sortState[existingIndex];
         if (current.direction === 'asc') {
           current.direction = 'desc';
         } else {
-          sortState.splice(existingIndex, 1); // 제거
+          sortState.splice(existingIndex, 1);
           return;
         }
       } else {
-        sortState.unshift({ index, direction: 'asc' }); // 최근 클릭이 최우선
+        sortState.unshift({ index, direction: 'asc' });
       }
     }
 
