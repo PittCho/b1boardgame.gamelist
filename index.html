@@ -136,7 +136,7 @@
         text.textContent = title;
 
         const sortBtn = document.createElement('button');
-        sortBtn.textContent = '↕';
+        sortBtn.textContent = getSortSymbol(idx);
         sortBtn.className = 'sort-btn';
         sortBtn.addEventListener('click', () => {
           updateSort(idx);
@@ -216,6 +216,12 @@
         existing.direction = existing.direction === 'asc' ? 'desc' : 'asc';
         sortState = [existing, ...sortState.filter(s => s.index !== index)];
       }
+    }
+
+    function getSortSymbol(index) {
+      const state = sortState.find(s => s.index === index);
+      if (!state) return '↕'; // 기본 상태
+      return state.direction === 'asc' ? '▲' : '▼';
     }
 
     function applySort() {
