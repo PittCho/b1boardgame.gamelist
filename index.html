@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Game list</title>
+  <title>Google Sheets 테이블 출력</title>
   <style>
     table {
       border-collapse: collapse;
@@ -13,6 +13,8 @@
     th, td {
       border: 1px solid #ccc;
       padding: 8px;
+      vertical-align: top;
+      white-space: pre-wrap; /* 줄바꿈 유지 */
     }
     th {
       background-color: #f2f2f2;
@@ -26,40 +28,43 @@
   <script>
     const sheetId = '1F9Ho9alBcuP1_PoJletmulKCJqPCVm8SLTq61_uWJMM';
     const gid = '0';
-    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`;
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?gid=${gid}`;
 
     fetch(url)
-      .then(response => response.text())
-      .then(csvText => {
-        const rows = csvText.trim().split('\n').map(row => row.split(','));
+      .then(res => res.text())
+      .then(text => {
+        const jsonData = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S\w]+)\)/)[1]);
+        const rows = jsonData.table.rows;
+        const cols = jsonData.table.cols.map(col => col.label);
+
         const table = document.getElementById('sheet-table');
 
-        // 테이블 헤더
+        // 헤더 생성
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
-        rows[0].forEach(cell => {
+        cols.forEach(col => {
           const th = document.createElement('th');
-          th.textContent = cell;
+          th.textContent = col;
           headerRow.appendChild(th);
         });
         thead.appendChild(headerRow);
         table.appendChild(thead);
 
-        // 테이블 바디
+        // 바디 생성
         const tbody = document.createElement('tbody');
-        rows.slice(1).forEach(row => {
+        rows.forEach(row => {
           const tr = document.createElement('tr');
-          row.forEach(cell => {
+          row.c.forEach(cell => {
             const td = document.createElement('td');
-            td.textContent = cell;
+            td.textContent = cell && cell.v ? cell.v : '-';  // 빈 셀은 "-"
             tr.appendChild(td);
           });
           tbody.appendChild(tr);
         });
         table.appendChild(tbody);
       })
-      .catch(error => {
-        console.error('데이터 불러오기 실패:', error);
+      .catch(err => {
+        console.error('데이터 불러오기 실패:', err);
       });
   </script>
 </body>
