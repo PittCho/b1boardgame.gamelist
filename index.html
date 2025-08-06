@@ -31,7 +31,7 @@
       padding: 8px;
       text-align: left;
       vertical-align: top;
-      white-space: pre-wrap; /* 줄바꿈 유지 */
+      white-space: pre-wrap;
     }
 
     th {
@@ -66,9 +66,9 @@
     const gid = '0';
     const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?gid=${gid}`;
 
-    let originalData = [];   // 처음 가져온 원본 데이터
-    let currentData = [];    // 현재 테이블에 표시되는 데이터
-    let sortState = [];      // 정렬 상태 저장
+    let originalData = [];
+    let currentData = [];
+    let sortState = [];
 
     fetch(url)
       .then(res => res.text())
@@ -80,7 +80,6 @@
         const columnCount = cols.length - 1;
         const headers = cols.slice(0, columnCount).map(col => col.label);
 
-        // 원본 및 현재 데이터 설정
         originalData = rows.map(row =>
           row.c.slice(0, columnCount).map(cell => (cell && cell.v ? cell.v : '-'))
         );
@@ -106,7 +105,7 @@
         button.dataset.index = index;
 
         button.addEventListener('click', () => {
-          updateSort(index);
+          handleSortClick(index);
           sortTable();
           renderTable(headers, currentData);
         });
@@ -132,20 +131,27 @@
       table.appendChild(tbody);
     }
 
-    function updateSort(index) {
-      const existing = sortState.find(s => s.index === index);
+    function handleSortClick(index) {
+      const existingIndex = sortState.findIndex(s => s.index === index);
 
-      if (!existing) {
-        sortState.push({ index, direction: 'asc' });
-      } else if (existing.direction === 'asc') {
-        existing.direction = 'desc';
+      if (existingIndex !== -1) {
+        // 이미 존재: 방향만 변경
+        const current = sortState[existingIndex];
+        if (current.direction === 'asc') {
+          current.direction = 'desc';
+        } else {
+          // 정렬 제거 (순환 종료)
+          sortState.splice(existingIndex, 1);
+          return;
+        }
       } else {
-        sortState = sortState.filter(s => s.index !== index); // 정렬 해제
+        // 새 항목: 맨 앞에 추가 (최우선 정렬)
+        sortState.unshift({ index, direction: 'asc' });
       }
     }
 
     function sortTable() {
-      currentData = [...currentData]; // 원본 유지
+      currentData = [...currentData];
       currentData.sort((a, b) => {
         for (const s of sortState) {
           const valA = a[s.index];
