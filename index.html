@@ -48,6 +48,23 @@
       padding: 2px 4px;
     }
 
+    .sort-order {
+      font-size: 0.7em;
+      color: #555;
+      margin-left: 4px;
+    }
+
+    input.column-filter {
+      width: 90%;
+      margin-top: 4px;
+      padding: 2px;
+      font-size: 0.9em;
+    }
+
+    tbody tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
     @media (max-width: 768px) {
       th, td {
         font-size: 14px;
@@ -69,6 +86,7 @@
     let originalData = [];
     let currentData = [];
     let sortState = [];
+    let filters = [];
 
     fetch(url)
       .then(res => res.text())
@@ -83,6 +101,8 @@
         originalData = rows.map(row =>
           row.c.slice(0, columnCount).map(cell => (cell && cell.v ? cell.v : '-'))
         );
+
+        filters = new Array(columnCount).fill('');
         currentData = [...originalData];
 
         renderTable(headers, currentData);
@@ -93,30 +113,59 @@
       table.innerHTML = '';
 
       const thead = document.createElement('thead');
-      const headerRow = document.createElement('tr');
 
+      // === 첫 번째 줄: 헤더와 정렬 버튼 ===
+      const headerRow = document.createElement('tr');
       headers.forEach((header, index) => {
         const th = document.createElement('th');
-        th.textContent = header;
 
-        const button = document.createElement('button');
-        button.className = 'sort-btn';
-        button.textContent = getSortSymbol(index);
-        button.dataset.index = index;
+        const textSpan = document.createElement('span');
+        textSpan.textContent = header;
 
-        button.addEventListener('click', () => {
+        const sortButton = document.createElement('button');
+        sortButton.className = 'sort-btn';
+        sortButton.textContent = getSortSymbol(index);
+        sortButton.dataset.index = index;
+
+        const sortOrder = getSortOrder(index);
+        const sortOrderSpan = document.createElement('span');
+        sortOrderSpan.className = 'sort-order';
+        sortOrderSpan.textContent = sortOrder !== null ? `(${sortOrder + 1})` : '';
+
+        sortButton.addEventListener('click', () => {
           handleSortClick(index);
-          sortTable();
-          renderTable(headers, currentData);
+          updateAndRender(headers);
         });
 
-        th.appendChild(button);
+        th.appendChild(textSpan);
+        th.appendChild(sortButton);
+        th.appendChild(sortOrderSpan);
         headerRow.appendChild(th);
       });
-
       thead.appendChild(headerRow);
+
+      // === 두 번째 줄: 필터 입력창 ===
+      const filterRow = document.createElement('tr');
+      headers.forEach((_, index) => {
+        const th = document.createElement('th');
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'column-filter';
+        input.value = filters[index];
+
+        input.addEventListener('input', (e) => {
+          filters[index] = e.target.value.toLowerCase();
+          updateAndRender(headers);
+        });
+
+        th.appendChild(input);
+        filterRow.appendChild(th);
+      });
+      thead.appendChild(filterRow);
+
       table.appendChild(thead);
 
+      // === 바디 ===
       const tbody = document.createElement('tbody');
       data.forEach(row => {
         const tr = document.createElement('tr');
@@ -135,24 +184,31 @@
       const existingIndex = sortState.findIndex(s => s.index === index);
 
       if (existingIndex !== -1) {
-        // 이미 존재: 방향만 변경
         const current = sortState[existingIndex];
         if (current.direction === 'asc') {
           current.direction = 'desc';
         } else {
-          // 정렬 제거 (순환 종료)
-          sortState.splice(existingIndex, 1);
+          sortState.splice(existingIndex, 1); // remove sort
           return;
         }
       } else {
-        // 새 항목: 맨 앞에 추가 (최우선 정렬)
-        sortState.unshift({ index, direction: 'asc' });
+        sortState.unshift({ index, direction: 'asc' }); // newest sort is first
       }
     }
 
-    function sortTable() {
-      currentData = [...currentData];
-      currentData.sort((a, b) => {
+    function getSortSymbol(index) {
+      const state = sortState.find(s => s.index === index);
+      if (!state) return '↕';
+      return state.direction === 'asc' ? '▲' : '▼';
+    }
+
+    function getSortOrder(index) {
+      const pos = sortState.findIndex(s => s.index === index);
+      return pos === -1 ? null : pos;
+    }
+
+    function sortTable(data) {
+      return [...data].sort((a, b) => {
         for (const s of sortState) {
           const valA = a[s.index];
           const valB = b[s.index];
@@ -172,10 +228,18 @@
       });
     }
 
-    function getSortSymbol(index) {
-      const state = sortState.find(s => s.index === index);
-      if (!state) return '↕';
-      return state.direction === 'asc' ? '▲' : '▼';
+    function filterData(data) {
+      return data.filter(row =>
+        row.every((cell, i) =>
+          !filters[i] || cell.toString().toLowerCase().includes(filters[i])
+        )
+      );
+    }
+
+    function updateAndRender(headers) {
+      let filtered = filterData(originalData);
+      currentData = sortTable(filtered);
+      renderTable(headers, currentData);
     }
   </script>
 </body>
