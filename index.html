@@ -66,8 +66,9 @@
     const gid = '0';
     const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?gid=${gid}`;
 
-    let tableData = [];
-    let sortState = [];
+    let originalData = [];   // 처음 가져온 원본 데이터
+    let currentData = [];    // 현재 테이블에 표시되는 데이터
+    let sortState = [];      // 정렬 상태 저장
 
     fetch(url)
       .then(res => res.text())
@@ -76,25 +77,22 @@
         const rows = jsonData.table.rows;
         const cols = jsonData.table.cols;
 
-        // 실제 열 개수보다 1개 적게 사용
         const columnCount = cols.length - 1;
-
-        // 헤더 추출
         const headers = cols.slice(0, columnCount).map(col => col.label);
 
-        // 데이터 추출
-        tableData = rows.map(row =>
+        // 원본 및 현재 데이터 설정
+        originalData = rows.map(row =>
           row.c.slice(0, columnCount).map(cell => (cell && cell.v ? cell.v : '-'))
         );
+        currentData = [...originalData];
 
-        renderTable(headers, tableData);
+        renderTable(headers, currentData);
       });
 
     function renderTable(headers, data) {
       const table = document.getElementById('sheet-table');
       table.innerHTML = '';
 
-      // 테이블 헤더
       const thead = document.createElement('thead');
       const headerRow = document.createElement('tr');
 
@@ -104,13 +102,13 @@
 
         const button = document.createElement('button');
         button.className = 'sort-btn';
-        button.textContent = '↕';
+        button.textContent = getSortSymbol(index);
         button.dataset.index = index;
 
         button.addEventListener('click', () => {
           updateSort(index);
-          applySort();
-          renderTable(headers, tableData);
+          sortTable();
+          renderTable(headers, currentData);
         });
 
         th.appendChild(button);
@@ -120,7 +118,6 @@
       thead.appendChild(headerRow);
       table.appendChild(thead);
 
-      // 테이블 바디
       const tbody = document.createElement('tbody');
       data.forEach(row => {
         const tr = document.createElement('tr');
@@ -137,37 +134,42 @@
 
     function updateSort(index) {
       const existing = sortState.find(s => s.index === index);
+
       if (!existing) {
         sortState.push({ index, direction: 'asc' });
       } else if (existing.direction === 'asc') {
         existing.direction = 'desc';
       } else {
-        // Remove sort on third click
-        sortState = sortState.filter(s => s.index !== index);
+        sortState = sortState.filter(s => s.index !== index); // 정렬 해제
       }
     }
 
-    function applySort() {
-      tableData.sort((a, b) => {
+    function sortTable() {
+      currentData = [...currentData]; // 원본 유지
+      currentData.sort((a, b) => {
         for (const s of sortState) {
           const valA = a[s.index];
           const valB = b[s.index];
-
           const isNumber = !isNaN(valA) && !isNaN(valB);
+
           if (valA === valB) continue;
 
           if (isNumber) {
-            return s.direction === 'asc'
-              ? valA - valB
-              : valB - valA;
+            return s.direction === 'asc' ? valA - valB : valB - valA;
           } else {
             return s.direction === 'asc'
-              ? valA.localeCompare(valB)
-              : valB.localeCompare(valA);
+              ? valA.toString().localeCompare(valB.toString())
+              : valB.toString().localeCompare(valA.toString());
           }
         }
         return 0;
       });
+    }
+
+    function getSortSymbol(index) {
+      const state = sortState.find(s => s.index === index);
+      if (!state) return '↕';
+      return state.direction === 'asc' ? '▲' : '▼';
     }
   </script>
 </body>
