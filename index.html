@@ -5,14 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>B1 보드게임카페 보유게임 리스트</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
+      margin: 0;
     }
 
     h1 {
       font-size: 1.5em;
       text-align: center;
+      margin-bottom: 20px;
     }
 
     .table-container {
@@ -21,17 +27,19 @@
     }
 
     table {
-      border-collapse: collapse;
       width: 100%;
       min-width: 600px;
+      border-collapse: collapse;
+      table-layout: fixed;
     }
 
     th, td {
       border: 1px solid #ccc;
-      padding: 8px;
+      padding: 6px;
       text-align: left;
       vertical-align: top;
       white-space: pre-wrap;
+      word-wrap: break-word;
     }
 
     th {
@@ -48,14 +56,17 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
     }
 
     .sort-btn {
       font-size: 0.8em;
       cursor: pointer;
       background: #eee;
-      border: none;
+      border: 1px solid #bbb;
       padding: 2px 4px;
+      border-radius: 4px;
+      margin-left: 4px;
     }
 
     .sort-order {
@@ -66,8 +77,11 @@
 
     input.column-filter {
       width: 100%;
+      max-width: 100%;
       font-size: 0.9em;
       padding: 4px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
     }
 
     tbody tr:nth-child(even) {
@@ -75,8 +89,18 @@
     }
 
     @media (max-width: 768px) {
-      th, td {
+      table {
         font-size: 14px;
+      }
+
+      .sort-btn {
+        padding: 1px 3px;
+        font-size: 0.75em;
+      }
+
+      input.column-filter {
+        font-size: 0.85em;
+        padding: 3px;
       }
     }
   </style>
@@ -130,7 +154,7 @@
         const container = document.createElement('div');
         container.className = 'header-cell';
 
-        // === 상단: 제목 + 정렬 버튼 + 우선순위
+        // 제목 + 정렬 버튼 + 정렬 순서
         const top = document.createElement('div');
         top.className = 'header-top';
 
@@ -161,7 +185,7 @@
         top.appendChild(sortWrap);
         container.appendChild(top);
 
-        // === 하단: 필터 입력
+        // 필터 입력창
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'column-filter';
@@ -174,7 +198,7 @@
 
         input.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') {
-            input.blur(); // blur에서 updateAndRender 실행됨
+            input.blur();
           }
         });
 
@@ -208,11 +232,11 @@
         if (current.direction === 'asc') {
           current.direction = 'desc';
         } else {
-          sortState.splice(existingIndex, 1); // remove sort
+          sortState.splice(existingIndex, 1); // 제거
           return;
         }
       } else {
-        sortState.unshift({ index, direction: 'asc' }); // newest sort is first
+        sortState.unshift({ index, direction: 'asc' }); // 최근 클릭이 최우선
       }
     }
 
